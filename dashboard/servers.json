@@ -1,0 +1,62 @@
+{
+  "groups": [
+    {
+      "name": "Proxmox Hosts",
+      "servers": [
+        {
+          "name": "Proxmox T630",
+          "ip": "192.168.0.108",
+          "os": "Proxmox VE",
+          "role": "Main homelab hypervisor",
+          "links": [
+            { "label": "Web GUI", "url": "https://192.168.0.108:8006" },
+            { "label": "Webmin", "url": "https://192.168.0.108:10000" }
+          ]
+        },
+        {
+          "name": "Cantainer Node",
+          "ip": "192.168.0.95",
+          "os": "Proxmox VE",
+          "role": "Klipper / CAN bus experiments",
+          "links": [
+            { "label": "Proxmox UI", "url": "https://192.168.0.95:8006" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "VMs",
+      "servers": [
+        {
+          "name": "LLM Server",
+          "ip": "192.168.0.188",
+          "os": "Ubuntu 24.04",
+          "role": "LLM workloads (Ollama, etc.)"
+        },
+        {
+          "name": "Ingestion Server",
+          "ip": "192.168.0.84",
+          "os": "Ubuntu 24.04",
+          "role": "Synapse / Matrix bridge"
+        }
+      ]
+    },
+    {
+      "name": "Networking",
+      "servers": [
+        {
+          "name": "Cisco Switch",
+          "ip": "192.168.0.142",
+          "os": "Cisco SG200-26P",
+          "role": "Core network switch"
+        },
+        {
+          "name": "DNS Server",
+          "ip": "192.168.0.101",
+          "os": "Ubuntu 24.04 Container",
+          "role": "LAN DNS (custom .local entries)"
+        }
+      ]
+    }
+  ]
+}
