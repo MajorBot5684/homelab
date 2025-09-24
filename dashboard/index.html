@@ -1,23 +1,378 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Homelab Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="style.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    :root { --bg:#0f1115; --panel:#171922; --subtle:#232738; --text:#e6e8ef; --muted:#9aa3b2; }
+    html,body{background:var(--bg); color:var(--text);} 
+    .navbar{background:linear-gradient(180deg,#161a22,#0f1218);} 
+    .card{background:var(--panel); border:1px solid var(--subtle); border-radius:16px;}
+    .card .badge{font-weight:600}
+    .group-title{border-left:6px solid #4f46e5; padding-left:12px; margin-top:1.25rem}
+    .search-wrap{max-width:560px}
+    .muted{color:var(--muted)}
+    .small-kbd{background:#10131a; border:1px solid #2a3143; padding:.1rem .35rem; border-radius:.35rem; font-size:.8rem}
+    .link-btn{--bs-btn-padding-y:.25rem; --bs-btn-padding-x:.5rem; --bs-btn-font-size:.8rem}
+    .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:.4rem}
+    .dot-online{background:#22c55e}.dot-offline{background:#ef4444}.dot-unknown{background:#9aa3b2}
+    .tag{display:inline-block; padding:.15rem .45rem; border:1px solid #2a3143; border-radius:999px; font-size:.75rem; color:#b6c0d4}
+    .footer{color:#8e97a7}
+    .diagram{border:1px dashed #2a3143; background:#0c0f16; border-radius:12px}
+    .edit-tools .btn{margin-right:.5rem}
+    .offcanvas{background:#0f1218;}
+    textarea#configEditor{min-height:50vh; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+  </style>
 </head>
-<body class="bg-dark text-light">
-  <div class="container py-4">
-    <h1 class="mb-4">Homelab Dashboard</h1>
-
-    <!-- Network Diagram -->
-    <div class="mb-4 text-center">
-      <img src="images/network-diagram.png" class="img-fluid rounded shadow" alt="Network Diagram">
+<body>
+  <!-- Top Bar -->
+  <nav class="navbar navbar-dark sticky-top shadow-sm">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1"><i class="bi bi-hdd-network me-2"></i>Homelab Dashboard</span>
+      <div class="d-flex align-items-center gap-2">
+        <div class="search-wrap input-group input-group-sm">
+          <span class="input-group-text bg-transparent text-secondary border-secondary"><i class="bi bi-search"></i></span>
+          <input id="searchInput" type="search" class="form-control bg-transparent text-light border-secondary" placeholder="Search name, IP, role, OS, tag… (Press /)" />
+        </div>
+        <button class="btn btn-outline-light btn-sm" data-bs-toggle="offcanvas" data-bs-target="#editorPanel" title="Edit config (JSON)"><i class="bi bi-pencil-square me-1"></i>Edit</button>
+        <button id="btnExport" class="btn btn-outline-info btn-sm" title="Download config JSON"><i class="bi bi-download me-1"></i>Export</button>
+        <label for="fileImport" class="btn btn-outline-success btn-sm mb-0" title="Import config JSON"><i class="bi bi-upload me-1"></i>Import</label>
+        <input id="fileImport" type="file" accept="application/json" class="d-none" />
+      </div>
     </div>
+  </nav>
 
-    <!-- Server Groups Container -->
+  <main class="container py-4">
+    <!-- Network Diagram -->
+    <section class="mb-4">
+      <div class="diagram p-3 text-center">
+        <img id="networkDiagram" src="images/network-diagram.png" class="img-fluid" alt="Network Diagram (edit images/network-diagram.png)" onerror="this.outerHTML='<div class=\'py-4 muted\'>Place your diagram at <code>images/network-diagram.png</code></div>'" />
+      </div>
+      <div class="mt-2 small muted">Update your diagram by replacing <code>images/network-diagram.png</code>. SVG/PNG recommended.</div>
+    </section>
+
+    <!-- Dashboard groups render here -->
     <div id="dashboard"></div>
+
+    <div class="footer pt-4 mt-4 border-top border-secondary small">
+      <div class="d-flex justify-content-between flex-wrap gap-2">
+        <div>
+          <span class="me-3"><span class="status-dot dot-online"></span>Online</span>
+          <span class="me-3"><span class="status-dot dot-offline"></span>Offline</span>
+          <span><span class="status-dot dot-unknown"></span>Unknown</span>
+        </div>
+        <div>
+          <span class="me-3">Press <span class="small-kbd">/</span> to focus search</span>
+          <span>Config stored in <code>servers.json</code> or edited live in the panel</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Offcanvas JSON Editor -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="editorPanel" aria-labelledby="editorLabel">
+    <div class="offcanvas-header">
+      <h5 id="editorLabel"><i class="bi bi-braces-asterisk me-2"></i>Edit Config (servers.json)</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="mb-2 text-secondary">Edit your configuration below. Changes apply live and are saved to <code>localStorage</code>. Use Export to download a JSON copy.</div>
+      <textarea id="configEditor" class="form-control bg-dark text-light border-secondary"></textarea>
+      <div class="edit-tools mt-3">
+        <button id="btnApply" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i>Apply</button>
+        <button id="btnRevert" class="btn btn-outline-warning"><i class="bi bi-arrow-counterclockwise me-1"></i>Revert to file</button>
+        <button id="btnClearLocal" class="btn btn-outline-danger"><i class="bi bi-x-octagon me-1"></i>Clear Local Changes</button>
+      </div>
+    </div>
   </div>
-  <script src="script.js"></script>
+
+  <!-- Default config embedded for single-file portability (can be replaced by servers.json file on server) -->
+  <script id="servers-config" type="application/json">
+  {
+    "groups": [
+      {
+        "name": "Proxmox Hosts",
+        "servers": [
+          {
+            "name": "Proxmox T630",
+            "ip": "192.168.0.108",
+            "os": "Proxmox VE 8",
+            "role": "Main hypervisor (ZFS raidz2: hddbank)",
+            "tags": ["hypervisor","primary"],
+            "links": [
+              { "label": "Proxmox UI", "url": "https://192.168.0.108:8006" },
+              { "label": "Webmin", "url": "https://192.168.0.108:10000" }
+            ],
+            "checks": [
+              { "type": "http", "url": "https://192.168.0.108:8006" },
+              { "type": "http", "url": "https://192.168.0.108:10000" }
+            ]
+          },
+          {
+            "name": "Cantainer Node",
+            "ip": "192.168.0.95",
+            "os": "Proxmox VE",
+            "role": "Secondary node for printers / Klipper",
+            "tags": ["hypervisor"],
+            "links": [ { "label": "Proxmox UI", "url": "https://192.168.0.95:8006" } ],
+            "checks": [ { "type": "http", "url": "https://192.168.0.95:8006" } ]
+          }
+        ]
+      },
+      {
+        "name": "Core Services",
+        "servers": [
+          {
+            "name": "DNS Server",
+            "ip": "192.168.0.101",
+            "os": "Ubuntu 24.04 (CT)",
+            "role": "LAN DNS (.local overrides)",
+            "tags": ["dns"],
+            "links": [],
+            "checks": [ { "type": "tcp", "port": 53 } ]
+          },
+          {
+            "name": "Nginx Proxy Manager",
+            "ip": "npm.coreply.com.au",
+            "os": "NPM",
+            "role": "Reverse proxy / certs",
+            "tags": ["proxy"],
+            "links": [ { "label": "NPM UI", "url": "http://npm.coreply.com.au:81" } ],
+            "checks": [ { "type": "http", "url": "http://npm.coreply.com.au:81" } ]
+          }
+        ]
+      },
+      {
+        "name": "VMs & Apps",
+        "servers": [
+          {
+            "name": "LLM Server",
+            "ip": "192.168.0.188",
+            "os": "Ubuntu 24.04",
+            "role": "Local LLM workloads (Ollama, etc.)",
+            "tags": ["ai","compute"],
+            "links": [],
+            "checks": [ { "type": "http", "url": "http://192.168.0.188" } ]
+          },
+          {
+            "name": "Ingestion / Synapse",
+            "ip": "192.168.0.84",
+            "os": "Ubuntu 24.04 (VM)",
+            "role": "Ingestion / Synapse",
+            "tags": ["matrix"],
+            "links": [],
+            "checks": [ { "type": "http", "url": "http://192.168.0.84" } ]
+          },
+          {
+            "name": "InstaDB",
+            "ip": "192.168.0.75",
+            "os": "Debian 12",
+            "role": "Database host",
+            "tags": ["db"],
+            "links": [],
+            "checks": [ { "type": "tcp", "port": 5432 } ]
+          }
+        ]
+      },
+      {
+        "name": "Printers / Klipper",
+        "servers": [
+          {
+            "name": "Klipper Host",
+            "ip": "192.168.0.200",
+            "os": "Debian",
+            "role": "Klipper + Mainsail",
+            "tags": ["printer"],
+            "links": [ { "label": "Mainsail", "url": "http://mainsail.local" } ],
+            "checks": [ { "type": "http", "url": "http://mainsail.local" } ]
+          }
+        ]
+      },
+      {
+        "name": "Networking",
+        "servers": [
+          {
+            "name": "Cisco SG200-26P",
+            "ip": "192.168.0.142",
+            "os": "Cisco",
+            "role": "PoE switch",
+            "tags": ["switch"],
+            "links": [],
+            "checks": [ { "type": "tcp", "port": 80 } ]
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <script>
+    // --- Utility: debounce ---
+    function debounce(fn, ms){let t;return (...args)=>{clearTimeout(t);t=setTimeout(()=>fn(...args), ms)} }
+
+    // --- Load config: prefer servers.json, then localStorage, then embedded script tag ---
+    async function loadConfig(){
+      try {
+        const res = await fetch('servers.json', {cache:'no-store'});
+        if(res.ok){ return await res.json(); }
+      } catch(_){}
+      const ls = localStorage.getItem('homelab.config');
+      if(ls){ try{return JSON.parse(ls)}catch(_){} }
+      const embedded = document.getElementById('servers-config').textContent;
+      return JSON.parse(embedded);
+    }
+
+    // --- Render dashboard from config ---
+    function renderDashboard(cfg){
+      const root = document.getElementById('dashboard');
+      root.innerHTML = '';
+      cfg.groups.forEach(group=>{
+        const section = document.createElement('section');
+        section.innerHTML = `<h2 class="group-title">${group.name}</h2><div class="row" data-group></div>`;
+        const row = section.querySelector('[data-group]');
+
+        group.servers.forEach(server=>{
+          const col = document.createElement('div');
+          col.className = 'col-xl-3 col-lg-4 col-md-6';
+
+          const tags = (server.tags||[]).map(t=>`<span class="tag me-1">${t}</span>`).join('');
+          const links = (server.links||[]).map(l=>`<a class="btn btn-sm btn-outline-light link-btn me-1 mt-1" target="_blank" href="${l.url}"><i class="bi bi-box-arrow-up-right me-1"></i>${l.label}</a>`).join('');
+
+          col.innerHTML = `
+            <div class="card mb-3" data-card data-name="${server.name.toLowerCase()}" data-ip="${server.ip}" data-os="${(server.os||'').toLowerCase()}" data-role="${(server.role||'').toLowerCase()}" data-tags="${(server.tags||[]).join(' ').toLowerCase()}">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                  <h5 class="card-title">${server.name}</h5>
+                  <span class="badge bg-secondary" id="status-${server.name.replace(/[^a-z0-9]/gi,'_')}"><span class="status-dot dot-unknown"></span>Unknown</span>
+                </div>
+                <div class="small muted mb-2">${server.role||''}</div>
+                <div class="mb-2">
+                  <div><i class="bi bi-cpu me-1"></i>OS: ${server.os||'—'}</div>
+                  <div><i class="bi bi-ethernet me-1"></i>IP/Host: <span class="text-info">${server.ip||'—'}</span></div>
+                </div>
+                ${tags ? `<div class="mb-2">${tags}</div>`:''}
+                ${links ? `<div class="mt-2">${links}</div>`:''}
+              </div>
+            </div>`;
+
+          row.appendChild(col);
+
+          // Kick off health checks
+          runChecks(server).then(status=>updateBadge(server, status));
+        });
+
+        root.appendChild(section);
+      });
+    }
+
+    // --- Health checks: HTTP (no-cors) and pseudo-TCP via fetch to http(s)://ip:port ---
+    async function runChecks(server){
+      const checks = server.checks || [];
+      if(checks.length===0){ return 'unknown'; }
+
+      const results = await Promise.all(checks.map(async c=>{
+        try{
+          if(c.type==='http' && c.url){
+            await fetch(c.url, {mode:'no-cors', cache:'no-store'});
+            return true;
+          }
+          if(c.type==='tcp' && (c.port || c.url)){
+            // Browser cannot raw-TCP; attempt an HTTP(S) probe against port.
+            const base = server.ip?.startsWith('http')? server.ip : `http://${server.ip}`;
+            const url = c.url || `${base}:${c.port}`;
+            await fetch(url, {mode:'no-cors', cache:'no-store'});
+            return true;
+          }
+        }catch(_){ return false; }
+        return false;
+      }));
+
+      const ok = results.some(Boolean);
+      const allFail = results.every(v=>v===false);
+      return ok ? 'online' : (allFail ? 'offline' : 'unknown');
+    }
+
+    function updateBadge(server, status){
+      const id = `status-${server.name.replace(/[^a-z0-9]/gi,'_')}`;
+      const el = document.getElementById(id);
+      if(!el) return;
+      if(status==='online'){ el.className='badge bg-success'; el.innerHTML='<span class="status-dot dot-online"></span>Online'; }
+      else if(status==='offline'){ el.className='badge bg-danger'; el.innerHTML='<span class="status-dot dot-offline"></span>Offline'; }
+      else { el.className='badge bg-secondary'; el.innerHTML='<span class="status-dot dot-unknown"></span>Unknown'; }
+    }
+
+    // --- Search ---
+    function applySearch(q){
+      q = (q||'').trim().toLowerCase();
+      document.querySelectorAll('[data-card]').forEach(card=>{
+        const hay = [card.dataset.name, card.dataset.ip, card.dataset.os, card.dataset.role, card.dataset.tags].join(' ');
+        card.parentElement.classList.toggle('d-none', q && !hay.includes(q));
+      });
+    }
+
+    // --- Editor panel logic ---
+    let originalConfigText = '';
+
+    async function init(){
+      const cfg = await loadConfig();
+      originalConfigText = JSON.stringify(cfg, null, 2);
+      document.getElementById('configEditor').value = localStorage.getItem('homelab.config') || originalConfigText;
+      renderDashboard(cfg);
+
+      // Events
+      const input = document.getElementById('searchInput');
+      input.addEventListener('input', debounce(e=>applySearch(e.target.value), 120));
+      window.addEventListener('keydown', (e)=>{ if(e.key==='/'){ e.preventDefault(); input.focus(); } });
+
+      document.getElementById('btnApply').addEventListener('click', ()=>{
+        try{
+          const txt = document.getElementById('configEditor').value;
+          const next = JSON.parse(txt);
+          localStorage.setItem('homelab.config', JSON.stringify(next));
+          renderDashboard(next);
+        }catch(err){ alert('Invalid JSON: '+err.message); }
+      });
+
+      document.getElementById('btnRevert').addEventListener('click', ()=>{
+        localStorage.removeItem('homelab.config');
+        document.getElementById('configEditor').value = originalConfigText;
+        renderDashboard(JSON.parse(originalConfigText));
+      });
+
+      document.getElementById('btnClearLocal').addEventListener('click', ()=>{
+        localStorage.removeItem('homelab.config');
+        alert('Local changes cleared. Reopen the editor or reload the page.');
+      });
+
+      document.getElementById('btnExport').addEventListener('click', ()=>{
+        const txt = document.getElementById('configEditor').value;
+        const blob = new Blob([txt], {type:'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'servers.json';
+        a.click();
+      });
+
+      document.getElementById('fileImport').addEventListener('change', async (e)=>{
+        const file = e.target.files?.[0];
+        if(!file) return;
+        const txt = await file.text();
+        try{
+          const obj = JSON.parse(txt);
+          document.getElementById('configEditor').value = JSON.stringify(obj, null, 2);
+          localStorage.setItem('homelab.config', JSON.stringify(obj));
+          renderDashboard(obj);
+        }catch(err){ alert('Invalid JSON: '+err.message); }
+        e.target.value='';
+      });
+    }
+
+    // Bootstrap init
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
