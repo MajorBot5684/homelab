@@ -1,0 +1,93 @@
+version: "3.9"
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      - API_KEY=${API_KEY}
+      - BEARER_TOKEN=${BEARER_TOKEN}
+      - DATA_PATH=/data
+      - BACKUP_KEEP=${BACKUP_KEEP:-20}
+      - SCHEDULE_ENABLED=${SCHEDULE_ENABLED:-false}
+      - SCAN_SUBNET=${SCAN_SUBNET:-192.168.0.0/24}
+      - SCAN_INTERVAL_MIN=${SCAN_INTERVAL_MIN:-0}
+      - SCAN_TOP_PORTS=${SCAN_TOP_PORTS:-100}
+    volumes:
+      - ./data:/data
+    networks: [ homelab ]
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    networks: [ homelab ]
+    depends_on: [ backend ]
+    restart: unless-stopped
+
+networks:
+  homelab: {}
+
+
+  # Optional monitoring stack
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: [ monitoring ]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: [ "9090:9090" ]
+    networks: [ homelab ]
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    profiles: [ monitoring ]
+    pid: host
+    network_mode: host
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    profiles: [ monitoring ]
+    privileged: true
+    ports: [ "8081:8080" ]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    profiles: [ monitoring ]
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports: [ "3000:3000" ]
+    volumes:
+      - ./monitoring/grafana-provisioning:/etc/grafana/provisioning
+    depends_on: [ prometheus ]
+    networks: [ homelab ]
+    restart: unless-stopped
+
+  # TLS frontend (HTTPS) instead of default http
+  frontend-tls:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    profiles: [ tls ]
+    ports:
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx-https.conf.sample:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks: [ homelab ]
+    depends_on: [ backend ]
+    restart: unless-stopped
