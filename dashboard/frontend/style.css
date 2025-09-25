@@ -1,0 +1,18 @@
+:root { --bg:#0f1115; --panel:#171922; --subtle:#232738; --text:#e6e8ef; --muted:#9aa3b2; }
+html,body{background:var(--bg); color:var(--text);}
+.navbar{background:linear-gradient(180deg,#161a22,#0f1218);}
+.card{background:var(--panel); border:1px solid var(--subtle); border-radius:16px;}
+.card .badge{font-weight:600}
+.group-title{border-left:6px solid #4f46e5; padding-left:12px; margin-top:1.25rem}
+.search-wrap{max-width:420px}
+.muted{color:var(--muted)}
+.small-kbd{background:#10131a; border:1px solid #2a3143; padding:.1rem .35rem; border-radius:.35rem; font-size:.8rem}
+.link-btn{--bs-btn-padding-y:.25rem; --bs-btn-padding-x:.5rem; --bs-btn-font-size:.8rem}
+.status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:.4rem}
+.dot-online{background:#22c55e}.dot-offline{background:#ef4444}.dot-unknown{background:#9aa3b2}
+.tag{display:inline-block; padding:.15rem .45rem; border:1px solid #2a3143; border-radius:999px; font-size:.75rem; color:#b6c0d4; cursor:pointer}
+.tag.active{background:#283049; color:#eaf0ff}
+.footer{color:#8e97a7}
+.diagram{border:1px dashed #2a3143; background:#0c0f16; border-radius:12px}
+.offcanvas{background:#0f1218;}
+textarea#configEditor{min-height:50vh; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;}
